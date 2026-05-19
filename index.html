@@ -204,6 +204,7 @@
         const container = document.getElementById("player-container");
 
         // 處理步驟一：將多選的相依素材塞進瀏覽器記憶體快取
+        /*
         document.getElementById("cache-input").addEventListener("change", (e) => {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
@@ -216,6 +217,24 @@
 
             document.getElementById("cache-info").innerText = `[ Caching ${Object.keys(virtualFS).length} Asset(s) in Memory ]`;
             document.getElementById("cache-info").style.color = "var(--success-color)";
+        });*/
+        // 修改後的快取注入邏輯
+        document.getElementById("cache-input").addEventListener("change", (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+        
+            files.forEach(file => {
+                // 技巧：將原始 file 的 slice 取出，並建立一個帶有特殊標籤的新 Blob
+                const namedBlob = file.slice(0, file.size, "application/x-shockwave-flash");
+                
+                // 部分現代瀏覽器支援在物件上直接掛載 name 屬性影響 URL 生成
+                const blobURL = URL.createObjectURL(namedBlob);
+                
+                // 為了達到你想要的效果，我們直接在虛擬地圖中改用「自訂名稱」對應
+                virtualFS[file.name.toLowerCase()] = blobURL;
+            });
+        
+            document.getElementById("cache-info").innerText = `[ Caching ${Object.keys(virtualFS).length} Asset(s) ]`;
         });
 
         // 核心：初始化播放器並設置攔截器
