@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ruffle VFS Player - Perfect Map Test</title>
+<title>Ruffle VFS Player - Ultimate Weapon</title>
 
 <script src="./static/js/ruffle.js"></script>
 
@@ -146,7 +146,7 @@ input[type=file]{
 
 <div class="player-card">
 
-    <h2>Flash BLOB Smart Mapping Test</h2>
+    <h2>Flash BLOB Smart Mapping Test (Fixed)</h2>
 
     <div class="control-panel">
 
@@ -418,38 +418,38 @@ function initPlayer(){
         player
     );
 
-    // 🎯 【智慧映射攔截器核心升級】
+    // 🎯 【超強防禦型攔截器核心】
     player.onInterceptURLLoad =
     (url)=>{
 
-        console.log("[Ruffle 請求行為]", url);
+        console.log("[Ruffle 原始請求網址]:", url);
         
-        // 1. 標準清洗：試圖解析出檔名
-        let fileName = "";
+        // 1. 優先處理像第二張截圖中那種純檔名（e.g., "top.swf" 或 "top.swf?雜質"）
+        // 只要能從這串字串結尾切出乾淨的小寫檔名，且我們 VFS 裡有，就直接攔截！
+        let cleanName = url.split('?')[0].split('/').pop().toLowerCase();
+        
+        if (virtualFS[cleanName]) {
+            console.log(`%c[VFS 強制檔名命中] 成功攔截純檔名請求: ${cleanName} >>> ${virtualFS[cleanName].rawUrl}`, "color: #00bb00; font-weight: bold;");
+            return virtualFS[cleanName].rawUrl;
+        }
+
+        // 2. 後備處理帶網域的標準網址 (e.g., https://... 或 blob:https://...)
         try {
             const parsed = new URL(url, baseOrigin);
-            fileName = parsed.pathname.split("/").pop().toLowerCase();
-        } catch(e) {
-            fileName = url.split('?')[0].split('/').pop().toLowerCase();
-        }
-
-        // 2. 第一路徑：如果能直接對齊檔名 Key (如 top.swf)，直接精準命中！
-        if(virtualFS[fileName]){
-            console.log(`%c[VFS 檔名命中] ${fileName} >>> ${virtualFS[fileName].rawUrl}`, "color: #00bb00; font-weight: bold;");
-            return virtualFS[fileName].rawUrl;
-        }
-
-        // 3. 第二路徑：如果 Ruffle 噴出來的是帶 UUID 的虛擬路徑 (如你載入序列中顯示的狀態)
-        // 這裡啟動「模糊後備映射機制」，只要判定是來自 flash.nins.cc 的 blob 請求，
-        // 就去尋找 VFS 中是否有相應類型的備用資源。
-        if (url.includes("flash.nins.cc") && url.startsWith("blob:")) {
-            console.log(`%c[VFS 攔截到虛擬 BLOB 請求] 正在進行動態重定向...`, "color: #ff9900; font-style: italic;");
+            let fileNameFromURL = parsed.pathname.split("/").pop().toLowerCase();
             
-            // 嘗試尋找 VFS 裡尚未被載入的對應資源檔案（例如序列中的 top.swf）
-            // 為了極致的安全與準確度，直接將其對應到你上傳的子 SWF 上
+            if(virtualFS[fileNameFromURL]){
+                console.log(`%c[VFS 網址解析命中] ${fileNameFromURL} >>> ${virtualFS[fileNameFromURL].rawUrl}`, "color: #00bb00; font-weight: bold;");
+                return virtualFS[fileNameFromURL].rawUrl;
+            }
+        } catch(e) {}
+
+        // 3. 第三防禦線：如果 Ruffle 依然噴出帶 UUID 的虛擬路徑 (blob:https://flash.nins.cc/xxxx-xxxx)
+        // 且我們上面的檔名對齊失敗了，這裡啟動萬用後備：自動綁定到上傳的子 SWF 上
+        if (url.includes("flash.nins.cc")) {
             const subSWFKey = Object.keys(virtualFS).find(k => k !== mainSelect.value && k.endsWith('.swf'));
             if(subSWFKey) {
-                console.log(`%c[VFS 虛擬映射成功] 成功將虛擬別名導向記憶體中的: ${subSWFKey}`, "color: #0088cc; font-weight: bold;");
+                console.log(`%c[VFS 動態 UUID 映射成功] 虛擬路徑導向記憶體中的子 SWF: ${subSWFKey}`, "color: #0088cc; font-weight: bold;");
                 return virtualFS[subSWFKey].rawUrl;
             }
         }
@@ -474,7 +474,7 @@ launchBtn.addEventListener(
     const asset = virtualFS[key];
     const player = initPlayer();
 
-    console.log(`%c[啟動測試] 投餵原始 Blob Stream 至 Ruffle 內核`, "color: #ff9900; font-weight: bold;");
+    console.log(`%c[啟動測試] 投餵原始 Blob Stream`, "color: #ff9900; font-weight: bold;");
 
     player.load({
         url: asset.rawUrl, 
