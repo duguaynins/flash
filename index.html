@@ -1,498 +1,366 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ruffle VFS Player</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruffle VFS Player - Perfect URL Mapping</title>
+    
+    <script src="./static/js/ruffle.js"></script>
 
-<script src="./static/js/ruffle.js"></script>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --border-color: #000000;
+            --accent-dim: #767676;
+            --height-unit: 38px;
+        }
 
-<style>
-:root{
-    --bg:#fff;
-    --text:#000;
-    --border:#000;
-    --dim:#777;
-    --h:38px;
-}
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
 
-body{
-    margin:0;
-    padding:40px 20px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-    display:flex;
-    justify-content:center;
-    background:#fff;
-}
+        .player-card {
+            width: 100%;
+            max-width: 800px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            box-sizing: border-box;
+        }
 
-.player-card{
-    width:100%;
-    max-width:900px;
-    border:1px solid black;
-    padding:30px;
-    box-sizing:border-box;
-}
+        h2 {
+            margin: 0 0 24px 0;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
 
-.control-panel{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:20px;
-    margin-bottom:20px;
-}
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
 
-@media(max-width:768px){
-    .control-panel{
-        grid-template-columns:1fr;
-    }
-}
+        @media (max-width: 768px) {
+            .control-panel { grid-template-columns: 1fr; gap: 16px; }
+        }
 
-.control-section{
-    display:flex;
-    flex-direction:column;
-}
+        .control-section {
+            display: flex;
+            flex-direction: column;
+        }
 
-label{
-    font-size:11px;
-    font-weight:bold;
-    margin-bottom:5px;
-}
+        .control-section label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
 
-.input-group{
-    display:flex;
-    height:var(--h);
-}
+        .input-group {
+            display: flex;
+            width: 100%;
+            height: var(--height-unit);
+            box-sizing: border-box;
+        }
 
-input[type=text],
-select{
-    flex:1;
-    border:1px solid black;
-    border-right:none;
-    padding:0 10px;
-    outline:none;
-}
+        input[type="text"], select {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-right: none;
+            color: var(--text-color);
+            font-family: inherit;
+            padding: 0 12px;
+            flex-grow: 1;
+            font-size: 13px;
+            outline: none;
+            height: 100%;
+            box-sizing: border-box;
+        }
 
-.btn{
-    border:1px solid black;
-    background:white;
-    cursor:pointer;
-    padding:0 16px;
-    font-size:11px;
-    font-weight:bold;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    box-sizing:border-box;
-}
+        select {
+            cursor: pointer;
+            border-radius: 0;
+            -webkit-appearance: none;
+            appearance: none;
+        }
 
-.btn:hover{
-    background:black;
-    color:white;
-}
+        input[type="file"] { display: none; }
 
-.file-btn{
-    border-left:none;
-    display:flex;
-    align-items:center;
-}
+        .btn {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            font-family: inherit;
+            padding: 0 16px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            box-sizing: border-box;
+            transition: background-color 0.1s, color 0.1s;
+        }
 
-input[type=file]{
-    display:none;
-}
+        .btn:hover {
+            background-color: var(--text-color);
+            color: var(--bg-color);
+        }
 
-.cache-status{
-    margin-top:8px;
-    font-size:11px;
-    color:var(--dim);
-}
+        .file-mount-btn { border-left: none; }
 
-#blob-inspector{
-    display:none;
-    margin-top:15px;
-    padding:10px;
-    font-family:monospace;
-    font-size:11px;
-    border:1px dashed black;
-    background:#fafafa;
-    word-break:break-all;
-}
+        .blob-display-area {
+            margin-top: 10px;
+            font-size: 11px;
+            font-family: monospace;
+            background-color: #fafafa;
+            border: 1px dashed var(--border-color);
+            padding: 10px;
+            word-break: break-all;
+            display: none;
+        }
 
-#player-container{
-    margin-top:20px;
-    width:100%;
-    aspect-ratio:4/3;
-    border:1px solid black;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    overflow:hidden;
-}
+        .cache-status {
+            font-size: 11px;
+            color: var(--accent-dim);
+            margin-top: 6px;
+            font-style: italic;
+        }
 
-#player-container ruffle-player{
-    width:100%;
-    height:100%;
-    display:block;
-}
-</style>
+        #player-container {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background-color: #ffffff;
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            margin-top: 20px;
+        }
 
+        .placeholder-text {
+            color: var(--accent-dim);
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        #player-container ruffle-player { width: 100%; height: 100%; display: block; }
+    </style>
 </head>
 <body>
 
-<div class="player-card">
+    <div class="player-card">
+        <h2>Flash VFS Controller</h2>
 
-    <h2>Flash VFS Controller</h2>
-
-    <div class="control-panel">
-
-        <div class="control-section">
-
-            <label>Step 1: Mount</label>
-
-            <div class="input-group">
-
-                <input
-                    id="url-input"
-                    type="text"
-                    placeholder="https://example.com/game.swf"
-                >
-
-                <button
-                    class="btn"
-                    id="fetch-btn"
-                >
-                    Fetch
-                </button>
-
-                <label class="btn file-btn">
-
-                    <input
-                        id="files-input"
-                        type="file"
-                        multiple
-                        accept=".swf,.mp3,.xml"
-                    >
-
-                    Files
-
-                </label>
-
+        <div class="control-panel">
+            <div class="control-section">
+                <label>Step 1: Mount Sources (URL or Files)</label>
+                <div class="input-group">
+                    <input type="text" id="url-cache-input" placeholder="https://example.com/game.swf">
+                    <button class="btn" id="fetch-url-btn">Fetch</button>
+                    <label class="btn file-mount-btn">
+                        <input type="file" id="assets-input" accept=".swf,.mp3,.xml" multiple>
+                        Files
+                    </label>
+                </div>
+                <div class="cache-status" id="cache-info">[ VFS Drive Unmounted ]</div>
             </div>
-
-            <div
-                class="cache-status"
-                id="cache-info"
-            >
-                [VFS Empty]
+            
+            <div class="control-section">
+                <label for="main-select">Step 2: Launch Selected SWF</label>
+                <div class="input-group">
+                    <select id="main-select" disabled>
+                        <option value="">[ Select Target SWF ]</option>
+                    </select>
+                    <button class="btn" id="launch-btn" disabled>Launch</button>
+                </div>
             </div>
-
         </div>
 
+        <div class="blob-display-area" id="blob-inspector"></div>
 
-        <div class="control-section">
-
-            <label>Step 2: Launch</label>
-
-            <div class="input-group">
-
-                <select
-                    id="main-select"
-                    disabled
-                >
-                    <option value="">
-                        [Select SWF Target]
-                    </option>
-                </select>
-
-                <button
-                    class="btn"
-                    id="launch-btn"
-                    disabled
-                >
-                    Launch
-                </button>
-
-            </div>
-
+        <div id="player-container">
+            <div class="placeholder-text">[ AWAITING VFS DRIVE MOUNT ]</div>
         </div>
-
     </div>
 
-
-    <div id="blob-inspector"></div>
-
-    <div id="player-container">
-
-        <div>
-            [VFS Waiting for Files]
-        </div>
-
-    </div>
-
-</div>
-
-
-<script>
-
-const baseOrigin = "https://flash.nins.cc";
-const virtualFS = {};
-
-window.RufflePlayer = window.RufflePlayer || {};
-
-window.RufflePlayer.config = {
-    publicPath:"./static/js/",
-    letterbox:"on",
-    scale:"showAll",
-    forceScale:true,
-    quality:"high"
-};
-
-
-const container = document.getElementById("player-container");
-const urlInput = document.getElementById("url-input");
-const fetchBtn = document.getElementById("fetch-btn");
-const filesInput = document.getElementById("files-input");
-const mainSelect = document.getElementById("main-select");
-const launchBtn = document.getElementById("launch-btn");
-const cacheInfo = document.getElementById("cache-info");
-const inspector = document.getElementById("blob-inspector");
-
-
-function updateUI(){
-
-    const count = Object.keys(virtualFS).length;
-
-    cacheInfo.innerText = `[Mounted ${count} Files]`;
-
-    mainSelect.disabled = count===0;
-    launchBtn.disabled = count===0;
-
-}
-
-
-function addAssetToVFS(name, blob){
-
-    const key = name.toLowerCase();
-    const virtualURL = `${baseOrigin}/${key}`;
-
-    if(virtualFS[key]){
-        URL.revokeObjectURL(virtualFS[key].rawUrl);
-    }
-
-    virtualFS[key] = {
-        blob:blob,
-        displayUrl:virtualURL,
-        rawUrl:URL.createObjectURL(blob)
-    };
-
-
-    if(key.endsWith(".swf")){
-
-        let option = [...mainSelect.options].find(o=>o.value===key);
-
-        if(!option){
-            option = document.createElement("option");
-            option.value = key; // 🎯 修正：第一時間將 value 初始化賦值，確保選單比對不漏失
-            mainSelect.appendChild(option);
-        }
-
-        option.textContent = virtualURL;
-    }
-
-}
-
-
-mainSelect.addEventListener(
-"change",
-()=>{
-
-    const key = mainSelect.value;
-
-    if(!key || !virtualFS[key]){
-        inspector.style.display = "none";
-        return;
-    }
-
-    const asset = virtualFS[key];
-
-    inspector.style.display = "block";
-    inspector.innerHTML=
-`
-<b>Virtual URL</b>
-<br><br>
-${asset.displayUrl}
-<br><br>
-<b>Real Blob URL</b>
-<br><br>
-${asset.rawUrl}
-`;
-
-});
-
-
-fetchBtn.addEventListener(
-"click",
-async()=>{
-
-    const url = urlInput.value.trim();
-
-    if(!url) return;
-
-    try{
-
-        cacheInfo.innerText = "[Fetching...]";
-
-        const res = await fetch(url);
-
-        if(!res.ok){
-            throw new Error(
-                `HTTP ${res.status}`
-            );
-        }
-
-        const blob = await res.blob();
-
-        const fileName =
-            url
-            .split("?")[0]
-            .split("/")
-            .pop();
-
-        addAssetToVFS(
-            fileName,
-            blob
-        );
-
-        updateUI();
-        urlInput.value = ""; // 清空輸入框增加體驗
-
-    }
-    catch(err){
-
-        alert(`Fetch 失敗 (請檢查 CORS 限制):\n${err.message}`);
-        updateUI(); // 🎯 修正：發生異常時重置文字，防止畫面一直卡在 Fetching
-
-    }
-
-});
-
-
-filesInput.addEventListener(
-"change",
-e=>{
-
-    [...e.target.files]
-    .forEach(file=>{
-
-        addAssetToVFS(
-            file.name,
-            file
-        );
-
-    });
-
-    updateUI();
-    e.target.value = ""; // 重置 input 確保同名檔案再次選擇時能正常觸發 change
-
-});
-
-
-function initPlayer(){
-
-    container.innerHTML="";
-
-    const ruffle =
-        window
-        .RufflePlayer
-        .newest();
-
-    const player =
-        ruffle.createPlayer();
-
-    container.appendChild(
-        player
-    );
-
-
-    player.onInterceptURLLoad =
-    (url)=>{
-
-        console.log(
-            "[Ruffle Request]",
-            url
-        );
-
-        try{
-
-            const parsed =
-                new URL(
-                    url,
-                    baseOrigin
-                );
-
-            const fileName =
-                parsed.pathname
-                .split("/")
-                .pop()
-                .toLowerCase();
-
-            if(virtualFS[fileName]){
-                console.log(`%c[VFS Hit!!] Redirected ${fileName} to real Blob Stream`, "color: #00bb00; font-weight: bold;");
-                return virtualFS[fileName].rawUrl;
-            }
-
-        }catch(e){
-            // 🎯 修正：如果傳入特殊相對路徑導致 new URL 報錯時，啟動後備切分防禦，確保不漏網
-            const fileName = url.split('?')[0].split('/').pop().toLowerCase();
-            if(virtualFS[fileName]){
-                return virtualFS[fileName].rawUrl;
+    <script>
+        const virtualFS = {}; 
+        const targetDomain = "https://flash.nins.cc"; // 🌟 你的目標偽裝網域
+
+        window.RufflePlayer = window.RufflePlayer || {};
+        window.RufflePlayer.config = {
+            publicPath: "./static/js/",
+            letterbox: "on",         
+            scale: "showAll",        
+            forceScale: true,
+            quality: "high"          
+        };
+
+        const container = document.getElementById("player-container");
+        const urlCacheInput = document.getElementById("url-cache-input");
+        const fetchUrlBtn = document.getElementById("fetch-url-btn");
+        const assetsInput = document.getElementById("assets-input");
+        const mainSelect = document.getElementById("main-select");
+        const launchBtn = document.getElementById("launch-btn");
+        const cacheInfo = document.getElementById("cache-info");
+        const blobInspector = document.getElementById("blob-inspector");
+
+        function updateUIStatus() {
+            const totalCached = Object.keys(virtualFS).length;
+            if (totalCached > 0) {
+                cacheInfo.innerText = `[ Successfully Mounted ${totalCached} Files ]`;
+                mainSelect.disabled = false;
+                launchBtn.disabled = false;
             }
         }
 
-        return url;
+        // 將檔案裝載入虛擬檔案系統
+        function addAssetToVFS(name, blobObject) {
+            const lowerName = name.toLowerCase();
+            
+            // 🌟 拋棄 blob: 前綴，直接組裝成標準的 HTTPS 網址！
+            const targetVirtualPath = `${targetDomain}/${lowerName}`;
 
-    };
+            if (virtualFS[lowerName]) {
+                URL.revokeObjectURL(virtualFS[lowerName].rawUrl);
+            }
 
-    return player;
+            virtualFS[lowerName] = {
+                blob: blobObject,
+                rawUrl: URL.createObjectURL(blobObject), // 瀏覽器真正認識的隨機 UUID Blob 網址
+                displayUrl: targetVirtualPath           // 完美的偽裝 HTTPS 顯示網址
+            };
 
-}
+            if (lowerName.endsWith('.swf')) {
+                let option = Array.from(mainSelect.options).find(opt => opt.value === lowerName);
+                if (!option) {
+                    option = document.createElement("option");
+                    option.value = lowerName; // 保持純小寫檔名作為內部 Key
+                    mainSelect.appendChild(option);
+                }
+                // 🎯 下拉選單的 NAME 直接展示完美的 HTTPS 網址！
+                option.textContent = targetVirtualPath; 
+            }
+        }
 
-
-launchBtn.addEventListener(
-"click",
-()=>{
-
-    const key = mainSelect.value;
-
-    if(!virtualFS[key])
-        return;
-
-    const asset = virtualFS[key];
-    const player = initPlayer();
-    const reader = new FileReader();
-
-    reader.onload =
-    (e)=>{
-
-        player.load({
-
-            data:
-                e.target.result,
-
-            url:
-                asset.displayUrl,
-
-            allowScriptAccess:true
-
+        mainSelect.addEventListener("change", () => {
+            const key = mainSelect.value;
+            if (key && virtualFS[key]) {
+                blobInspector.style.display = "block";
+                blobInspector.innerHTML = `<strong>VFS TARGET PATH:</strong><br>${virtualFS[key].displayUrl}`;
+            } else {
+                blobInspector.style.display = "none";
+            }
         });
 
-    };
+        fetchUrlBtn.addEventListener("click", async () => {
+            const url = urlCacheInput.value.trim();
+            if (!url) return alert("Please enter a URL.");
 
-    reader.readAsArrayBuffer(
-        asset.blob
-    );
+            const fileName = url.split('?')[0].split('/').pop() || "remote_game.swf";
+            cacheInfo.innerText = "[ Fetching remote binary... ]";
 
-});
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const blob = await response.blob();
+                addAssetToVFS(fileName, blob);
+                updateUIStatus();
+                urlCacheInput.value = "";
+            } catch (error) {
+                alert(`Fetch failed:\n${error.message}`);
+                cacheInfo.innerText = "[ Fetch Failed ]";
+            }
+        });
 
-</script>
+        assetsInput.addEventListener("change", (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
 
+            files.forEach(file => {
+                addAssetToVFS(file.name, file);
+            });
+            updateUIStatus();
+        });
+
+        // 初始化播放器並附加「完美中斷攔截器」
+        function initNewPlayer() {
+            container.innerHTML = "";
+            const ruffle = window.RufflePlayer.newest();
+            const player = ruffle.createPlayer();
+            container.appendChild(player);
+
+            // 🎯 核心中斷：不管是主程式載入還是子資源載入，只要觸發 HTTPS 請求立刻攔截
+            player.onInterceptURLLoad = (url) => {
+                console.log(`[Ruffle 試圖請求]: ${url}`);
+                try {
+                    // 剝離可能附帶的網域和快取雜質，取得純淨小寫檔名
+                    const parsedUrl = new URL(url, targetDomain);
+                    let fileName = parsedUrl.pathname.split('/').pop().toLowerCase();
+
+                    // 🎯 精準半路攔截：直接丟回瀏覽器真正認得的記憶體數據流，不讓請求流向實體網路！
+                    if (virtualFS[fileName]) {
+                        console.log(`%c[VFS 成功中斷並導向!!] ${url} >>> 轉向至內存 >>> ${virtualFS[fileName].rawUrl}`, "color: #00bb00; font-weight: bold;");
+                        return virtualFS[fileName].rawUrl; 
+                    }
+                } catch(e) {
+                    const fileName = url.split('?')[0].split('/').pop().toLowerCase();
+                    if (virtualFS[fileName]) return virtualFS[fileName].rawUrl;
+                }
+                
+                console.warn(`[VFS 漏空放行網路實體請求]: ${url}`);
+                return url;
+            };
+
+            return player;
+        }
+
+        launchBtn.addEventListener("click", () => {
+            const selectedKey = mainSelect.value; 
+            if (!selectedKey) return alert("Please select a target SWF.");
+
+            const targetAsset = virtualFS[selectedKey];
+            if (targetAsset) {
+                const player = initNewPlayer();
+                
+                // 🌟 使用 FileReader 讀成 ArrayBuffer 二進位投餵，杜絕瀏覽器安全層報錯
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const arrayBuffer = e.target.result;
+                    
+                    console.log(`%c[VFS Booting] Ruffle Base URL 鎖定為: ${targetAsset.displayUrl}`, "color: #0088cc; font-weight: bold;");
+                    
+                    // 投餵二進位，並將 Base URL 設為擬真的 HTTPS 網址
+                    player.load({
+                        data: arrayBuffer,
+                        url: targetAsset.displayUrl, // 完美基底：https://flash.nins.cc/main.swf
+                        allowScriptAccess: true
+                    });
+                };
+                
+                reader.readAsArrayBuffer(targetAsset.blob);
+            }
+        });
+    </script>
 </body>
 </html>
