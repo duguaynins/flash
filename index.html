@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruffle VFS Player - Unified Mobile Style</title>
+    <title>Ruffle VFS Player - Direct Mapping</title>
     
     <script src="./static/js/ruffle.js"></script>
 
@@ -21,7 +21,7 @@
             color: var(--text-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             margin: 0;
-            padding: 20px 15px; /* 縮減邊距以適應手機螢幕 */
+            padding: 20px 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -30,10 +30,10 @@
 
         .player-card {
             width: 100%;
-            max-width: 600px; /* 縮小最大寬度，使其在電腦上也能呈現如手機般的精緻單欄 */
+            max-width: 600px; /* 手機優先，直式單欄精緻比例 */
             background-color: var(--bg-color);
             border: 1px solid var(--border-color);
-            padding: 20px; /* 適度微調內襯 */
+            padding: 20px;
             box-sizing: border-box;
         }
 
@@ -45,7 +45,6 @@
             text-transform: uppercase;
         }
 
-        /* 統一排版：不分裝置，一律採用單欄直式佈局 */
         .control-panel {
             display: grid;
             grid-template-columns: 1fr; 
@@ -141,7 +140,6 @@
             font-style: italic;
         }
 
-        /* 播放器區域（鎖定 4:3 比例，並確保不溢出手機螢幕） */
         #player-container {
             width: 100%;
             aspect-ratio: 4 / 3;
@@ -203,11 +201,11 @@
     </div>
 
     <script>
+        // 核心對照記憶體 (一律用純小寫檔名當 Key 檢索)
         const virtualFS = {}; 
-        const baseOrigin = window.location.origin;
+        const baseOrigin = window.location.origin; // 取得當前網域，例如 http://localhost:8000
 
         window.RufflePlayer = window.RufflePlayer || {};
-        
         window.RufflePlayer.config = {
             publicPath: "./static/js/",
             letterbox: "on",         
@@ -234,46 +232,61 @@
             }
         }
 
-        function addAssetToVFS(name, blobURL) {
+        // 核心：將檔案塞入對照表，並優化下拉選單的 Name 與 Value
+        function addAssetToVFS(name, rawBlobURL) {
             const lowerName = name.toLowerCase();
             
+            // 釋放重複上傳的舊記憶體指標
             if (virtualFS[lowerName]) {
                 URL.revokeObjectURL(virtualFS[lowerName].rawUrl);
             }
 
+            // 完美的虛擬網址名稱：blob:http://localhost:8000/main.swf
             const targetBlobVirtualPath = `blob:${baseOrigin}/${lowerName}`;
 
+            // 資料庫儲存結構
             virtualFS[lowerName] = {
-                rawUrl: blobURL,                 
-                displayUrl: targetBlobVirtualPath 
+                rawUrl: rawBlobURL,                 // VALUE: 瀏覽器底層真實的隨機 UUID Blob URL
+                displayUrl: targetBlobVirtualPath // NAME:  你指定的帶有真實檔名的虛擬網址
             };
 
+            // 如果是 SWF，直接注入下拉選單
             if (lowerName.endsWith('.swf')) {
-                const exists = Array.from(mainSelect.options).some(opt => opt.value === lowerName);
-                if (!exists) {
-                    const option = document.createElement("option");
-                    option.value = lowerName;
-                    option.textContent = targetBlobVirtualPath; 
+                // 檢查是否已存在
+                let option = Array.from(mainSelect.options).find(opt => opt.getAttribute('data-key') === lowerName);
+                
+                if (!option) {
+                    option = document.createElement("option");
                     mainSelect.appendChild(option);
                 }
+
+                // 🎯 完美應對結構
+                option.setAttribute('data-key', lowerName); // 綁定純檔名 Key 用於內部快速查找
+                option.textContent = targetBlobVirtualPath; // 下拉選單顯示的 [NAME] >>> blob:http://.../main.swf
+                option.value = rawBlobURL;                  // 下拉選單背後的 [VALUE] >>> blob:http://.../uuid-string
             }
         }
 
+        // 下拉選單切換時顯示路徑
         mainSelect.addEventListener("change", () => {
-            const key = mainSelect.value;
-            if (key && virtualFS[key]) {
-                blobInspector.style.style.display = "block";
-                blobInspector.innerHTML = `<strong>TARGET BLOB PATH:</strong><br>${virtualFS[key].displayUrl}`;
+            const rawUrl = mainSelect.value;
+            // 透過 value 逆向反查對應的 displayUrl
+            const found = Object.values(virtualFS).find(item => item.rawUrl === rawUrl);
+            
+            if (rawUrl && found) {
+                blobInspector.style.display = "block";
+                blobInspector.innerHTML = `<strong>TARGET BLOB PATH:</strong><br>${found.displayUrl}`;
             } else {
                 blobInspector.style.display = "none";
             }
         });
 
+        // 遠端 URL Fetch
         fetchUrlBtn.addEventListener("click", async () => {
             const url = urlCacheInput.value.trim();
             if (!url) return alert("Please enter a URL.");
 
-            const fileName = url.split('/').pop() || "remote_game.swf";
+            const fileName = url.split('?')[0].split('/').pop() || "remote_game.swf";
             cacheInfo.innerText = "[ Fetching remote binary... ]";
 
             try {
@@ -284,11 +297,12 @@
                 updateUIStatus();
                 urlCacheInput.value = "";
             } catch (error) {
-                alert(`Fetch failed (CORS or network error):\n${error.message}`);
+                alert(`Fetch failed:\n${error.message}`);
                 cacheInfo.innerText = "[ Fetch Failed ]";
             }
         });
 
+        // 本地多檔案選取
         assetsInput.addEventListener("change", (e) => {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
@@ -299,17 +313,28 @@
             updateUIStatus();
         });
 
+        // 初始化播放器並設定「無死角」相依性攔截器
         function initNewPlayer() {
             container.innerHTML = "";
             const ruffle = window.RufflePlayer.newest();
             const player = ruffle.createPlayer();
             container.appendChild(player);
 
+            // 🌟 onInterceptURLLoad 核心解法
             player.onInterceptURLLoad = (url) => {
-                const fileName = url.split('/').pop().toLowerCase();
-                if (virtualFS[fileName]) {
-                    console.log(`[VFS Forwarding] Redirected ${fileName} to memory source.`);
-                    return virtualFS[fileName].rawUrl; 
+                try {
+                    // 安全解析網址，剝離 Flash 結尾常見的隨機參數 (如 top.swf?v=123)
+                    const parsedUrl = new URL(url, window.location.href);
+                    const fileName = parsedUrl.pathname.split('/').pop().toLowerCase();
+                    
+                    if (virtualFS[fileName]) {
+                        console.log(`[VFS Linked] Intercepted dependency: ${fileName}`);
+                        return virtualFS[fileName].rawUrl; // 丟回真實認得的底層二進位 Blob URL
+                    }
+                } catch(e) {
+                    // 備用降級切法
+                    const fileName = url.split('?')[0].split('/').pop().toLowerCase();
+                    if (virtualFS[fileName]) return virtualFS[fileName].rawUrl;
                 }
                 return url;
             };
@@ -317,16 +342,20 @@
             return player;
         }
 
+        // 啟動主程式
         launchBtn.addEventListener("click", () => {
-            const selectedKey = mainSelect.value;
-            if (!selectedKey) return alert("Please select a target BLOB.");
+            const selectedRawBlobUrl = mainSelect.value; // 直接拿到底層真實的二進位網址 (VALUE)
+            
+            if (!selectedRawBlobUrl) return alert("Please select a target BLOB.");
 
-            const targetAsset = virtualFS[selectedKey];
-            if (targetAsset) {
-                const player = initNewPlayer();
-                console.log(`Ruffle Loading Target: ${targetAsset.displayUrl}`);
-                player.load({ url: targetAsset.rawUrl }); 
-            }
+            const player = initNewPlayer();
+            
+            // 從對照表中撈出顯示名稱印 Log 給你看
+            const found = Object.values(virtualFS).find(item => item.rawUrl === selectedRawBlobUrl);
+            console.log(`Ruffle Loading Main SWF: ${found ? found.displayUrl : selectedRawBlobUrl}`);
+            
+            // 傳遞底層真實認得的二進位 Blob 網址給 Ruffle 執行，徹底免除 404 與檔案找不到錯誤
+            player.load({ url: selectedRawBlobUrl }); 
         });
     </script>
 </body>
