@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruffle VFS Player - Absolute Pure VFS</title>
+    <title>Ruffle VFS Player - Standard Path Pro</title>
     
     <script src="./static/js/ruffle.js"></script>
 
@@ -21,24 +21,25 @@
             color: var(--text-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             margin: 0;
-            padding: 20px 15px;
+            padding: 40px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
             box-sizing: border-box;
         }
 
         .player-card {
             width: 100%;
-            max-width: 600px;
+            max-width: 800px;
             background-color: var(--bg-color);
             border: 1px solid var(--border-color);
-            padding: 20px;
+            padding: 30px;
             box-sizing: border-box;
         }
 
         h2 {
-            margin: 0 0 20px 0;
+            margin: 0 0 24px 0;
             font-size: 14px;
             font-weight: 700;
             letter-spacing: 1px;
@@ -47,9 +48,13 @@
 
         .control-panel {
             display: grid;
-            grid-template-columns: 1fr; 
-            gap: 16px;
-            margin-bottom: 20px;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .control-panel { grid-template-columns: 1fr; gap: 16px; }
         }
 
         .control-section {
@@ -123,7 +128,6 @@
 
         .blob-display-area {
             margin-top: 10px;
-            margin-bottom: 10px;
             font-size: 11px;
             font-family: monospace;
             background-color: #fafafa;
@@ -150,6 +154,7 @@
             align-items: center;
             position: relative;
             overflow: hidden;
+            margin-top: 20px;
         }
 
         .placeholder-text {
@@ -199,9 +204,8 @@
     </div>
 
     <script>
-        // 全域虛擬檔案系統對照表 (一律用純小寫檔名當 Key 檢索)
         const virtualFS = {}; 
-        const baseOrigin = window.location.origin; // 例如 https://flash.nins.cc
+        const baseOrigin = "https://flash.nins.cc"; // 鎖死你的虛擬指定網域
 
         window.RufflePlayer = window.RufflePlayer || {};
         window.RufflePlayer.config = {
@@ -230,14 +234,16 @@
             }
         }
 
-        // 核心：將檔案轉成 Blob 儲存，並對應下拉選單
+        // 將檔案封裝進虛擬 VFS 核心
         function addAssetToVFS(name, blobObject) {
             const lowerName = name.toLowerCase();
-            
-            // 完美的虛擬網址別名：blob:https://flash.nins.cc/main.swf
             const targetBlobVirtualPath = `blob:${baseOrigin}/${lowerName}`;
 
-            // 🌟 這次除了存真實的隨機 UUID 網址（給相依子檔案用），也把原本的 Blob 實體留下來（啟動主程式用）
+            if (virtualFS[lowerName]) {
+                URL.revokeObjectURL(virtualFS[lowerName].rawUrl);
+            }
+
+            // 同時保留 Blob 實體與生出真實的 UUID 網址
             virtualFS[lowerName] = {
                 blob: blobObject,
                 rawUrl: URL.createObjectURL(blobObject),
@@ -245,30 +251,26 @@
             };
 
             if (lowerName.endsWith('.swf')) {
-                let option = Array.from(mainSelect.options).find(opt => opt.getAttribute('data-key') === lowerName);
+                let option = Array.from(mainSelect.options).find(opt => opt.value === lowerName);
                 if (!option) {
                     option = document.createElement("option");
+                    option.value = lowerName; // VALUE 保持乾淨的 Key（純檔名）
                     mainSelect.appendChild(option);
                 }
-
-                option.setAttribute('data-key', lowerName); 
-                option.textContent = targetBlobVirtualPath; // [NAME]  >>> blob:https://flash.nins.cc/main.swf
-                option.value = targetBlobVirtualPath;       // [VALUE] >>> blob:https://flash.nins.cc/main.swf
+                option.textContent = targetBlobVirtualPath; // NAME 完美顯示虛擬網址
             }
         }
 
         mainSelect.addEventListener("change", () => {
-            const selectedVirtualUrl = mainSelect.value;
-            const found = Object.values(virtualFS).find(item => item.displayUrl === selectedVirtualUrl);
-            if (selectedVirtualUrl && found) {
+            const key = mainSelect.value;
+            if (key && virtualFS[key]) {
                 blobInspector.style.display = "block";
-                blobInspector.innerHTML = `<strong>VFS TARGET ALIAS:</strong><br>${found.displayUrl}`;
+                blobInspector.innerHTML = `<strong>TARGET BLOB PATH:</strong><br>${virtualFS[key].displayUrl}`;
             } else {
                 blobInspector.style.display = "none";
             }
         });
 
-        // 遠端 URL 拉取
         fetchUrlBtn.addEventListener("click", async () => {
             const url = urlCacheInput.value.trim();
             if (!url) return alert("Please enter a URL.");
@@ -289,7 +291,6 @@
             }
         });
 
-        // 本地多檔案批次選取上傳 (SWF, XML, MP3 一起選)
         assetsInput.addEventListener("change", (e) => {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
@@ -300,22 +301,21 @@
             updateUIStatus();
         });
 
-        // 初始化播放器並註冊攔截器
+        // 初始化播放器並附加「精準導航攔截器」
         function initNewPlayer() {
             container.innerHTML = "";
             const ruffle = window.RufflePlayer.newest();
             const player = ruffle.createPlayer();
             container.appendChild(player);
 
-            // 🌟 100% 絕對防禦的攔截轉向 🌟
+            // 🎯 核心攔截轉向
             player.onInterceptURLLoad = (url) => {
                 console.log(`[Ruffle 內部發起請求]: ${url}`);
                 try {
-                    // 解析並剝離參數，切出純淨小寫檔名
-                    const parsedUrl = new URL(url, window.location.origin);
+                    // 1. 去除防快取雜質，取得純淨小寫檔名
+                    const parsedUrl = new URL(url, baseOrigin);
                     let fileName = parsedUrl.pathname.split('/').pop().toLowerCase();
 
-                    // 容錯防禦：如果 Ruffle 拿著拼接出來的虛擬路徑來查
                     if (url.startsWith('blob:')) {
                         const cleanUrl = url.replace(/^blob:/, '');
                         try {
@@ -324,9 +324,9 @@
                         } catch(err) {}
                     }
 
-                    // 🎯 精準命中：當子檔案請求發起時，丟回真實瀏覽器認得的隨機 UUID Blob
+                    // 2. 🎯 只要命中 VFS 對照表，立刻把底層真實可讀取的 UUID 網址丟回給 Ruffle 核心！
                     if (virtualFS[fileName]) {
-                        console.log(`%c[VFS 攔截命中!!] 成功將子請求 ${fileName} 導向至本地二進位指標`, "color: #00bb00");
+                        console.log(`%c[VFS 攔截命中!!] ${url} >>> 轉向記憶體資料流 >>> ${virtualFS[fileName].rawUrl}`, "color: #00bb00; font-weight: bold;");
                         return virtualFS[fileName].rawUrl; 
                     }
                 } catch(e) {
@@ -334,39 +334,37 @@
                     if (virtualFS[fileName]) return virtualFS[fileName].rawUrl;
                 }
                 
-                console.warn(`[VFS 漏空] 放行實體請求: ${url}`);
+                console.warn(`[VFS 漏空放行]: ${url}`);
                 return url;
             };
 
             return player;
         }
 
-        // 點擊 Launch 按鈕啟動主要 SWF 
         launchBtn.addEventListener("click", () => {
-            const selectedVirtualUrl = mainSelect.value; // 拿到 "blob:https://flash.nins.cc/main.swf"
-            if (!selectedVirtualUrl) return alert("Please select a target BLOB.");
+            const selectedKey = mainSelect.value; // 拿到例如 "main.swf"
+            if (!selectedKey) return alert("Please select a target BLOB.");
 
-            const foundAsset = Object.values(virtualFS).find(item => item.displayUrl === selectedVirtualUrl);
-            
-            if (foundAsset) {
+            const targetAsset = virtualFS[selectedKey];
+            if (targetAsset) {
                 const player = initNewPlayer();
                 
-                // 🌟 【核心修正】：不投餵任何實體網址字串！改用 FileReader 直接轉 ArrayBuffer 投餵二進位
+                // 🌟 使用 FileReader 轉成 ArrayBuffer 二進位投餵，消滅 file:// 協定安全報錯
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const arrayBuffer = e.target.result;
                     
-                    console.log(`%c[VFS Booting] 正在用純二進位啟動主程式，並將基底網址綁定為: ${selectedVirtualUrl}`, "color: #0088cc; font-weight: bold;");
+                    console.log(`%c[VFS Booting] 鎖定 Ruffle 的 Base URL 虛擬起點為: ${targetAsset.displayUrl}`, "color: #0088cc; font-weight: bold;");
                     
-                    // 🎯 強制將 Ruffle 的渲染內核基底鎖死在你指定的虛擬網址上！
+                    // 將主要 SWF 投餵進去，並指定它的起點就在指定的虛擬網址上
                     player.load({
                         data: arrayBuffer,
-                        url: selectedVirtualUrl, // 完美基底：blob:https://flash.nins.cc/main.swf
+                        url: targetAsset.displayUrl, // 完美基底：blob:https://flash.nins.cc/main.swf
                         allowScriptAccess: true
                     });
                 };
                 
-                reader.readAsArrayBuffer(foundAsset.blob);
+                reader.readAsArrayBuffer(targetAsset.blob);
             }
         });
     </script>
