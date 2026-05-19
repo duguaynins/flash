@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruffle Flash Player</title>
+    <title>Ruffle VFS Player</title>
     
-    <script src="/static/js/ruffle.js"></script>
+    <script src="./static/js/ruffle/ruffle.js"></script>
 
     <style>
-        /* 簡約白底黑線風格變數 */
         :root {
             --bg-color: #ffffff;
             --text-color: #000000;
             --border-color: #000000;
             --accent-dim: #767676;
-            --input-bg: #ffffff;
+            --success-color: #0088cc;
+            --height-unit: 38px;
         }
 
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             margin: 0;
             padding: 40px 20px;
             display: flex;
@@ -30,7 +30,6 @@
             box-sizing: border-box;
         }
 
-        /* 簡約外框容器 */
         .player-card {
             width: 100%;
             max-width: 800px;
@@ -42,59 +41,77 @@
 
         h2 {
             margin: 0 0 24px 0;
-            font-size: 18px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
-        /* 輸入與控制區域 */
-        .control-section {
+        /* 雙欄控制面板 */
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
             margin-bottom: 24px;
+        }
+
+        @media (max-width: 600px) {
+            .control-panel { grid-template-columns: 1fr; gap: 16px; }
+        }
+
+        .control-section {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-section label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
         }
 
         .input-group {
             display: flex;
-            gap: 10px;
-            margin-top: 8px;
-        }
-
-        label {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-color);
-            text-transform: uppercase;
-        }
-
-        input[type="text"] {
-            background-color: var(--input-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            font-family: inherit;
-            padding: 8px 12px;
-            flex-grow: 1;
-            font-size: 14px;
-            outline: none;
+            width: 100%;
+            height: var(--height-unit);
             box-sizing: border-box;
         }
 
-        /* 隱藏原生檔案上傳標籤 */
-        input[type="file"] {
-            display: none;
+        input[type="text"] {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-right: none;
+            color: var(--text-color);
+            font-family: inherit;
+            padding: 0 12px;
+            flex-grow: 1;
+            font-size: 13px;
+            outline: none;
+            height: 100%;
+            box-sizing: border-box;
         }
 
-        /* 簡約黑線按鈕樣式 */
+        input[type="file"] { display: none; }
+
         .btn {
             background-color: var(--bg-color);
             color: var(--text-color);
             border: 1px solid var(--border-color);
             font-family: inherit;
-            padding: 8px 16px;
+            padding: 0 16px;
             cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
+            font-size: 11px;
+            font-weight: 600;
             text-transform: uppercase;
             white-space: nowrap;
-            transition: background-color 0.15s, color 0.15s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            box-sizing: border-box;
+            transition: background-color 0.1s, color 0.1s;
         }
 
         .btn:hover {
@@ -102,20 +119,22 @@
             color: var(--bg-color);
         }
 
-        /* 簡約分隔線 */
-        hr {
-            border: none;
-            border-top: 1px solid var(--border-color);
-            margin: 24px 0;
+        .file-label { width: 100%; height: 100%; margin: 0 !important; }
+
+        /* 快取狀態提示文字 */
+        .cache-status {
+            font-size: 11px;
+            color: var(--accent-dim);
+            margin-top: 6px;
+            font-style: italic;
         }
 
-        /* 播放器容器 - 鎖定 4:3 比例防止畫面拉伸破圖 */
+        /* 播放器區域 */
         #player-container {
             width: 100%;
             aspect-ratio: 4 / 3;
-            background-color: #fafafa;
+            background-color: #ffffff;
             border: 1px solid var(--border-color);
-            margin-top: 20px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -125,41 +144,43 @@
 
         .placeholder-text {
             color: var(--accent-dim);
-            font-size: 13px;
-            letter-spacing: 0.5px;
+            font-size: 11px;
+            letter-spacing: 1px;
         }
 
-        /* 確保 Ruffle 元件完美填滿黑線容器 */
-        #player-container ruffle-player {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
+        #player-container ruffle-player { width: 100%; height: 100%; display: block; }
     </style>
 </head>
 <body>
 
     <div class="player-card">
-        <h2>FLASH PLAYER CONTROLLER</h2>
+        <h2>Flash VFS Controller</h2>
 
-        <div class="control-section">
-            <label for="url-input">Execute From Remote URL</label>
-            <div class="input-group">
-                <input type="text" id="url-input" placeholder="https://example.com/game.swf">
-                <button class="btn" id="load-url-btn">Load URL</button>
+        <div class="control-panel">
+            
+            <div class="control-section">
+                <label>Step 1: Cache Dependency Files (Optional)</label>
+                <div class="input-group">
+                    <label class="btn file-label">
+                        <input type="file" id="cache-input" accept=".swf,.mp3,.xml" multiple>
+                        Inject Assets into Cache
+                    </label>
+                </div>
+                <div class="cache-status" id="cache-info">[ Memory Cache Empty ]</div>
             </div>
-        </div>
-        
-        <hr>
+            
+            <div class="control-section">
+                <label for="url-input">Step 2: Execute Main SWF</label>
+                <div class="input-group">
+                    <input type="text" id="url-input" placeholder="Enter URL or Select File -->">
+                    <label class="btn" style="border-left: none; border-right: none;">
+                        <input type="file" id="main-file-input" accept=".swf">
+                        File
+                    </label>
+                    <button class="btn" id="load-url-btn">URL</button>
+                </div>
+            </div>
 
-        <div class="control-section">
-            <label>Mount & Execute Local File</label>
-            <div class="input-group">
-                <label class="btn" style="display: inline-block; text-align: center;">
-                    <input type="file" id="file-input" accept=".swf">
-                    Choose .SWF File
-                </label>
-            </div>
         </div>
 
         <div id="player-container">
@@ -168,59 +189,84 @@
     </div>
 
     <script>
-        // 設定 Ruffle 模組路徑
+        // 全域虛擬檔案快取地圖
+        const virtualFS = {};
+
         window.RufflePlayer = window.RufflePlayer || {};
         window.RufflePlayer.config = {
-            publicPath: "/static/js/",
-            letterbox: "on",         // 開啟黑邊留白，確保不因容器比例失衡而變形
-            scale: "showAll",        // 完整縮放模式
+            publicPath: "./static/js/ruffle/",
+            letterbox: "on",         
+            scale: "showAll",        
             forceScale: true,
-            quality: "high"          // 高渲染品質（減少文字向量圖形鋸齒）
+            quality: "high"          
         };
 
         const container = document.getElementById("player-container");
 
-        // 核心修正：每次重新建立全新播放器，徹底釋放前一個遊戲的記憶體以防止畫面破圖或殘留
+        // 處理步驟一：將多選的相依素材塞進瀏覽器記憶體快取
+        document.getElementById("cache-input").addEventListener("change", (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            files.forEach(file => {
+                const blobURL = URL.createObjectURL(file);
+                // 用小寫檔名做 Key，例如：virtualFS["level1.swf"] = "blob:http..."
+                virtualFS[file.name.toLowerCase()] = blobURL;
+            });
+
+            document.getElementById("cache-info").innerText = `[ Caching ${Object.keys(virtualFS).length} Asset(s) in Memory ]`;
+            document.getElementById("cache-info").style.color = "var(--success-color)";
+        });
+
+        // 核心：初始化播放器並設置攔截器
         function initNewPlayer() {
             container.innerHTML = "";
             const ruffle = window.RufflePlayer.newest();
             const player = ruffle.createPlayer();
             container.appendChild(player);
+
+            // 🌟 核心魔法：攔截 Ruffle 內部的所有網路請求！
+            // 當 Flash 試圖載入相對路徑的素材時，強制讓它去撈我們快取的 BlobURL
+            player.onInterceptURLLoad = (url) => {
+                // 取得檔案名稱（例如從 "http://localhost/level1.swf" 切出 "level1.swf"）
+                const fileName = url.split('/').pop().toLowerCase();
+                
+                if (virtualFS[fileName]) {
+                    console.log(`[VFS Hit] Redirecting request for ${fileName}`);
+                    return virtualFS[fileName]; // 命中快取，重導向至記憶體檔案
+                }
+                return url; // 沒命中，走原本的網路請求
+            };
+
             return player;
         }
 
-        // 處理程序 1：遠端網址載入
+        // 處理步驟二：遠端網址載入
         document.getElementById("load-url-btn").addEventListener("click", () => {
             const url = document.getElementById("url-input").value.trim();
             if (url) {
                 const player = initNewPlayer();
                 player.load({ url: url });
-                console.log("Loading SWF URL: " + url);
             } else {
-                alert("Please enter a valid SWF URL.");
+                alert("Please enter a URL.");
             }
         });
 
-        // 處理程序 2：本地檔案選取
-        document.getElementById("file-input").addEventListener("change", (event) => {
+        // 處理步驟二：本地主檔案載入
+        document.getElementById("main-file-input").addEventListener("change", (event) => {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                
                 reader.onload = (e) => {
-                    const arrayBuffer = e.target.result;
                     const player = initNewPlayer();
                     player.load({
-                        data: arrayBuffer,
+                        data: e.target.result,
                         allowScriptAccess: true
                     });
-                    console.log("Loaded local SWF: " + file.name);
                 };
-                
                 reader.readAsArrayBuffer(file);
             }
         });
     </script>
-
 </body>
 </html>
