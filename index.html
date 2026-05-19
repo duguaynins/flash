@@ -3,104 +3,235 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ruffle VFS Player - Final Solution</title>
+<title>Ruffle VFS Professional Loader</title>
+
 <script src="./static/js/ruffle.js"></script>
+
 <style>
-    body { font-family: sans-serif; padding: 40px; display: flex; justify-content: center; }
-    .player-card { width: 100%; max-width: 900px; border: 1px solid #000; padding: 20px; }
-    .control-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-    .btn { border: 1px solid #000; background: white; padding: 10px; cursor: pointer; }
-    #player-container { margin-top: 20px; width: 100%; aspect-ratio: 4/3; border: 1px solid #000; }
-    #player-container ruffle-player { width: 100%; height: 100%; display: block; }
+body{
+    margin:0;
+    padding:40px;
+    font-family:Arial, sans-serif;
+    background:#fff;
+    display:flex;
+    justify-content:center;
+}
+
+.card{
+    width:100%;
+    max-width:900px;
+    border:1px solid #000;
+    padding:20px;
+    box-sizing:border-box;
+}
+
+.row{
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
+}
+
+input, select{
+    flex:1;
+    height:38px;
+    border:1px solid #000;
+    padding:0 10px;
+    box-sizing:border-box;
+}
+
+button{
+    height:38px;
+    border:1px solid #000;
+    background:#fff;
+    cursor:pointer;
+    padding:0 15px;
+}
+
+button:hover{
+    background:#000;
+    color:#fff;
+}
+
+#player{
+    margin-top:20px;
+    width:100%;
+    aspect-ratio:4/3;
+    border:1px solid #000;
+}
+
+#log{
+    margin-top:10px;
+    font-size:12px;
+    font-family:monospace;
+    white-space:pre-wrap;
+}
 </style>
 </head>
+
 <body>
 
-<div class="player-card">
-    <h2>Flash VFS Manager</h2>
-    <div class="control-panel">
-        <div>
-            <label>Step 1: Upload Files</label><br>
-            <input type="file" id="files-input" multiple>
-            <div id="cache-info">[VFS Empty]</div>
-        </div>
-        <div>
-            <label>Step 2: Launch</label><br>
-            <select id="main-select" disabled></select>
-            <button class="btn" id="launch-btn" disabled>Launch</button>
-        </div>
+<div class="card">
+
+    <div class="row">
+        <input id="urlInput" placeholder="https://example.com/main.swf">
+        <button id="loadBtn">Load SWF</button>
     </div>
-    <div id="player-container"></div>
+
+    <div class="row">
+        <input type="file" id="fileInput" multiple accept=".swf,.mp3,.xml">
+        <select id="swfList"></select>
+        <button id="runBtn">Run</button>
+    </div>
+
+    <div id="player"></div>
+
+    <div id="log"></div>
+
 </div>
 
 <script>
-const virtualFS = {};
-const baseOrigin = "https://flash.nins.cc/";
-const container = document.getElementById("player-container");
-const filesInput = document.getElementById("files-input");
-const mainSelect = document.getElementById("main-select");
-const launchBtn = document.getElementById("launch-btn");
-const cacheInfo = document.getElementById("cache-info");
 
-// 1. 註冊檔案至 VFS
-filesInput.addEventListener("change", (e) => {
-    [...e.target.files].forEach(file => {
-        const key = file.name.toLowerCase();
-        if(virtualFS[key]) URL.revokeObjectURL(virtualFS[key].rawUrl);
-        
-        virtualFS[key] = {
-            rawUrl: URL.createObjectURL(file)
-        };
+const baseOrigin = "https://flash.nins.cc";
 
-        if(key.endsWith(".swf")) {
-            let option = document.createElement("option");
-            option.value = key;
-            option.textContent = key;
-            mainSelect.appendChild(option);
-        }
-    });
-    cacheInfo.innerText = `[Mounted ${Object.keys(virtualFS).length} Files]`;
-    mainSelect.disabled = false;
-    launchBtn.disabled = false;
-});
+/**
+ * VFS:
+ * key = normalized path
+ * value = blob URL
+ */
+const VFS = new Map();
 
-// 2. 初始化播放器並強制映射
-function initPlayer() {
+/* -------------------------
+   Path Normalize（核心）
+--------------------------*/
+function normalize(url){
+    try{
+        const u = new URL(url, baseOrigin);
+        return u.pathname.replace(/^\/+/,'').toLowerCase();
+    }catch(e){
+        return url.split('?')[0]
+                  .split('/')
+                  .pop()
+                  .toLowerCase();
+    }
+}
+
+/* -------------------------
+   Mount file into VFS
+--------------------------*/
+function mountFile(name, blob){
+
+    const key = name.replace(/^\/+/,'').toLowerCase();
+
+    const blobURL = URL.createObjectURL(blob);
+
+    VFS.set(key, blobURL);
+
+    log(`[VFS] mount ${key}`);
+}
+
+/* -------------------------
+   Ruffle init
+--------------------------*/
+function createPlayer(){
+
+    const container = document.getElementById("player");
     container.innerHTML = "";
+
     const ruffle = window.RufflePlayer.newest();
     const player = ruffle.createPlayer();
+
     container.appendChild(player);
 
-    // 關鍵攔截器：強制將所有請求錨定到 baseOrigin 後再比對
-    player.onInterceptURLLoad = (url) => {
-        try {
-            const urlObj = new URL(url, baseOrigin);
-            const fileName = urlObj.pathname.split('/').pop().toLowerCase();
-            
-            if (virtualFS[fileName]) {
-                console.log(`[Mapping] ${fileName} -> ${virtualFS[fileName].rawUrl}`);
-                return virtualFS[fileName].rawUrl;
-            }
-        } catch(e) {
-            console.error("URL解析錯誤:", url);
+    player.onInterceptURLLoad = (url)=>{
+
+        const key = normalize(url);
+
+        if(VFS.has(key)){
+            const blob = VFS.get(key);
+            log(`[HIT] ${key}`);
+            return blob;
         }
+
         return url;
     };
+
     return player;
 }
 
-launchBtn.addEventListener("click", () => {
-    const key = mainSelect.value;
-    const asset = virtualFS[key];
-    const player = initPlayer();
+/* -------------------------
+   UI log
+--------------------------*/
+function log(msg){
+    document.getElementById("log").textContent += msg + "\n";
+}
 
-    // 強制設定 baseUrl，讓 Ruffle 知道所有相對路徑都要問我們
-    player.load({
-        url: asset.rawUrl,
-        baseUrl: baseOrigin,
-        allowScriptAccess: true
+/* -------------------------
+   Load SWF
+--------------------------*/
+let currentPlayer = null;
+
+document.getElementById("loadBtn").onclick = async ()=>{
+
+    const url = document.getElementById("urlInput").value.trim();
+    if(!url) return;
+
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const buf = await blob.arrayBuffer();
+
+    const key = normalize(url);
+
+    mountFile(key, blob);
+
+    currentPlayer = createPlayer();
+
+    currentPlayer.load({
+        data: buf,
+        url: `${baseOrigin}/${key}`,
+        allowScriptAccess:true
     });
-});
+
+};
+
+/* -------------------------
+   Upload files
+--------------------------*/
+document.getElementById("fileInput").onchange = (e)=>{
+
+    [...e.target.files].forEach(f=>{
+        mountFile(f.name, f);
+
+        const opt = document.createElement("option");
+        opt.value = f.name.toLowerCase();
+        opt.textContent = f.name;
+        document.getElementById("swfList").appendChild(opt);
+    });
+
+};
+
+/* -------------------------
+   Run selected SWF
+--------------------------*/
+document.getElementById("runBtn").onclick = ()=>{
+
+    const key = document.getElementById("swfList").value;
+    if(!key) return;
+
+    const blobURL = VFS.get(key);
+    if(!blobURL) return;
+
+    currentPlayer = createPlayer();
+
+    currentPlayer.load({
+        url: `${baseOrigin}/${key}`,
+        allowScriptAccess:true
+    });
+
+};
+
 </script>
+
+</body>
+</html></script>
 </body>
 </html>
