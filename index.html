@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruffle VFS Player - Standard Path</title>
+    <title>Ruffle VFS Player - Unified Mobile Style</title>
     
     <script src="./static/js/ruffle.js"></script>
 
@@ -21,40 +21,36 @@
             color: var(--text-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             margin: 0;
-            padding: 40px 20px;
+            padding: 20px 15px; /* 縮減邊距以適應手機螢幕 */
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
             box-sizing: border-box;
         }
 
         .player-card {
             width: 100%;
-            max-width: 800px;
+            max-width: 600px; /* 縮小最大寬度，使其在電腦上也能呈現如手機般的精緻單欄 */
             background-color: var(--bg-color);
             border: 1px solid var(--border-color);
-            padding: 30px;
+            padding: 20px; /* 適度微調內襯 */
             box-sizing: border-box;
         }
 
         h2 {
-            margin: 0 0 24px 0;
+            margin: 0 0 20px 0;
             font-size: 14px;
             font-weight: 700;
             letter-spacing: 1px;
             text-transform: uppercase;
         }
 
+        /* 統一排版：不分裝置，一律採用單欄直式佈局 */
         .control-panel {
             display: grid;
-            grid-template-columns: 1.2fr 0.8fr;
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
-        @media (max-width: 768px) {
-            .control-panel { grid-template-columns: 1fr; gap: 16px; }
+            grid-template-columns: 1fr; 
+            gap: 16px;
+            margin-bottom: 20px;
         }
 
         .control-section {
@@ -128,6 +124,7 @@
 
         .blob-display-area {
             margin-top: 10px;
+            margin-bottom: 10px;
             font-size: 11px;
             font-family: monospace;
             background-color: #fafafa;
@@ -144,6 +141,7 @@
             font-style: italic;
         }
 
+        /* 播放器區域（鎖定 4:3 比例，並確保不溢出手機螢幕） */
         #player-container {
             width: 100%;
             aspect-ratio: 4 / 3;
@@ -154,7 +152,6 @@
             align-items: center;
             position: relative;
             overflow: hidden;
-            margin-top: 20px;
         }
 
         .placeholder-text {
@@ -207,11 +204,10 @@
 
     <script>
         const virtualFS = {}; 
-        const baseOrigin = window.location.origin; // 取得當前網域
+        const baseOrigin = window.location.origin;
 
         window.RufflePlayer = window.RufflePlayer || {};
         
-        // 2. 設定檔：配合你的路徑，指定 Ruffle 到 ./static/js/ 抓取 Wasm 核心零件
         window.RufflePlayer.config = {
             publicPath: "./static/js/",
             letterbox: "on",         
@@ -238,7 +234,6 @@
             }
         }
 
-        // 將檔案與你指定的完美 BLOB 網址 (blob:http://.../檔名) 進行對應連結
         function addAssetToVFS(name, blobURL) {
             const lowerName = name.toLowerCase();
             
@@ -246,12 +241,11 @@
                 URL.revokeObjectURL(virtualFS[lowerName].rawUrl);
             }
 
-            // 憑空生成你要的精準顯示格式
             const targetBlobVirtualPath = `blob:${baseOrigin}/${lowerName}`;
 
             virtualFS[lowerName] = {
-                rawUrl: blobURL,                 // 瀏覽器底層真實記憶體位址
-                displayUrl: targetBlobVirtualPath // 畫面上顯示的完美虛擬網址
+                rawUrl: blobURL,                 
+                displayUrl: targetBlobVirtualPath 
             };
 
             if (lowerName.endsWith('.swf')) {
@@ -259,24 +253,22 @@
                 if (!exists) {
                     const option = document.createElement("option");
                     option.value = lowerName;
-                    option.textContent = targetBlobVirtualPath; // 下拉選單直接顯示完美網址
+                    option.textContent = targetBlobVirtualPath; 
                     mainSelect.appendChild(option);
                 }
             }
         }
 
-        // 下拉選單切換時，動態更新顯示文字
         mainSelect.addEventListener("change", () => {
             const key = mainSelect.value;
             if (key && virtualFS[key]) {
-                blobInspector.style.display = "block";
+                blobInspector.style.style.display = "block";
                 blobInspector.innerHTML = `<strong>TARGET BLOB PATH:</strong><br>${virtualFS[key].displayUrl}`;
             } else {
                 blobInspector.style.display = "none";
             }
         });
 
-        // 處理程序 A：遠端 URL 下載並置入快取
         fetchUrlBtn.addEventListener("click", async () => {
             const url = urlCacheInput.value.trim();
             if (!url) return alert("Please enter a URL.");
@@ -297,7 +289,6 @@
             }
         });
 
-        // 處理程序 B：本地多檔案上傳並置入快取
         assetsInput.addEventListener("change", (e) => {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
@@ -308,7 +299,6 @@
             updateUIStatus();
         });
 
-        // 初始化播放器並註冊 VFS 資源定向投餵攔截器
         function initNewPlayer() {
             container.innerHTML = "";
             const ruffle = window.RufflePlayer.newest();
@@ -317,8 +307,6 @@
 
             player.onInterceptURLLoad = (url) => {
                 const fileName = url.split('/').pop().toLowerCase();
-                
-                // 當主要 SWF 在執行過程中去呼叫其他相依資源時，精準丟給 Ruffle 該檔案對應選中的真實 BLOB
                 if (virtualFS[fileName]) {
                     console.log(`[VFS Forwarding] Redirected ${fileName} to memory source.`);
                     return virtualFS[fileName].rawUrl; 
@@ -329,7 +317,6 @@
             return player;
         }
 
-        // 點擊 Launch 啟動你選擇的主要檔案 BLOB
         launchBtn.addEventListener("click", () => {
             const selectedKey = mainSelect.value;
             if (!selectedKey) return alert("Please select a target BLOB.");
@@ -337,8 +324,6 @@
             const targetAsset = virtualFS[selectedKey];
             if (targetAsset) {
                 const player = initNewPlayer();
-                
-                // 完美掛勾：控制台日誌輸出你要求的虛擬顯示格式，並把正確對應的真實 Blob 送進 Ruffle 載入
                 console.log(`Ruffle Loading Target: ${targetAsset.displayUrl}`);
                 player.load({ url: targetAsset.rawUrl }); 
             }
