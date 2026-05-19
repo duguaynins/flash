@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruffle VFS Player - Direct Mapping</title>
+    <title>Ruffle VFS Player - Direct Mapping Pro</title>
     
     <script src="./static/js/ruffle.js"></script>
 
@@ -201,10 +201,11 @@
     </div>
 
     <script>
-        // 核心對照記憶體 (一律用純小寫檔名當 Key 檢索)
+        // 全域虛擬檔案系統對照表 (一律用純小寫檔名當 Key 檢索)
         const virtualFS = {}; 
-        const baseOrigin = window.location.origin; // 取得當前網域，例如 http://localhost:8000
+        const baseOrigin = window.location.origin; // 自動取得目前網域，例如 https://flash.nins.cc
 
+        // Ruffle 播放器全域基本配置
         window.RufflePlayer = window.RufflePlayer || {};
         window.RufflePlayer.config = {
             publicPath: "./static/js/",
@@ -223,6 +224,7 @@
         const cacheInfo = document.getElementById("cache-info");
         const blobInspector = document.getElementById("blob-inspector");
 
+        // 更新介面狀態
         function updateUIStatus() {
             const totalCached = Object.keys(virtualFS).length;
             if (totalCached > 0) {
@@ -232,27 +234,27 @@
             }
         }
 
-        // 核心：將檔案塞入對照表，並優化下拉選單的 Name 與 Value
+        // 🎯 將上傳或拉取到的檔案二進位指標，塞入對照表並優化下拉選單
         function addAssetToVFS(name, rawBlobURL) {
             const lowerName = name.toLowerCase();
             
-            // 釋放重複上傳的舊記憶體指標
+            // 釋放重複上傳時的舊記憶體指標，避免瀏覽器記憶體洩漏
             if (virtualFS[lowerName]) {
                 URL.revokeObjectURL(virtualFS[lowerName].rawUrl);
             }
 
-            // 完美的虛擬網址名稱：blob:http://localhost:8000/main.swf
+            // 完美的虛擬網址別名：blob:https://flash.nins.cc/main.swf
             const targetBlobVirtualPath = `blob:${baseOrigin}/${lowerName}`;
 
-            // 資料庫儲存結構
+            // 資料庫儲存雙軌結構
             virtualFS[lowerName] = {
-                rawUrl: rawBlobURL,                 // VALUE: 瀏覽器底層真實的隨機 UUID Blob URL
-                displayUrl: targetBlobVirtualPath // NAME:  你指定的帶有真實檔名的虛擬網址
+                rawUrl: rawBlobURL,                 // 真實底層解碼用的隨機 UUID Blob URL
+                displayUrl: targetBlobVirtualPath // 你所要求的乾淨虛擬路徑顯示名稱
             };
 
-            // 如果是 SWF，直接注入下拉選單
+            // 如果是主要 SWF 檔案，注入下拉選單
             if (lowerName.endsWith('.swf')) {
-                // 檢查是否已存在
+                // 檢查是否已存在選單中，存在就更新，不存在就新增
                 let option = Array.from(mainSelect.options).find(opt => opt.getAttribute('data-key') === lowerName);
                 
                 if (!option) {
@@ -260,28 +262,27 @@
                     mainSelect.appendChild(option);
                 }
 
-                // 🎯 完美應對結構
-                option.setAttribute('data-key', lowerName); // 綁定純檔名 Key 用於內部快速查找
-                option.textContent = targetBlobVirtualPath; // 下拉選單顯示的 [NAME] >>> blob:http://.../main.swf
-                option.value = rawBlobURL;                  // 下拉選單背後的 [VALUE] >>> blob:http://.../uuid-string
+                // 🎯 完美應對結構映射：NAME 顯示與 VALUE 設定完全一體化轉為虛擬路徑
+                option.setAttribute('data-key', lowerName); 
+                option.textContent = targetBlobVirtualPath; // [NAME]  >>> blob:https://flash.nins.cc/main.swf
+                option.value = targetBlobVirtualPath;       // [VALUE] >>> blob:https://flash.nins.cc/main.swf
             }
         }
 
-        // 下拉選單切換時顯示路徑
+        // 當下拉選單切換時，連動更新底層顯示面板
         mainSelect.addEventListener("change", () => {
-            const rawUrl = mainSelect.value;
-            // 透過 value 逆向反查對應的 displayUrl
-            const found = Object.values(virtualFS).find(item => item.rawUrl === rawUrl);
+            const selectedVirtualUrl = mainSelect.value;
+            const found = Object.values(virtualFS).find(item => item.displayUrl === selectedVirtualUrl);
             
-            if (rawUrl && found) {
+            if (selectedVirtualUrl && found) {
                 blobInspector.style.display = "block";
-                blobInspector.innerHTML = `<strong>TARGET BLOB PATH:</strong><br>${found.displayUrl}`;
+                blobInspector.innerHTML = `<strong>VFS TARGET ALIAS:</strong><br>${found.displayUrl}<br><br><strong>INTERNAL MEMORY POINTER:</strong><br>${found.rawUrl}`;
             } else {
                 blobInspector.style.display = "none";
             }
         });
 
-        // 遠端 URL Fetch
+        // 處理程序 A：遠端 URL 拉取
         fetchUrlBtn.addEventListener("click", async () => {
             const url = urlCacheInput.value.trim();
             if (!url) return alert("Please enter a URL.");
@@ -302,7 +303,7 @@
             }
         });
 
-        // 本地多檔案選取
+        // 處理程序 B：本地多檔案批次選取上傳 (SWF, XML, MP3 等相依檔案一次選取)
         assetsInput.addEventListener("change", (e) => {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
@@ -313,49 +314,68 @@
             updateUIStatus();
         });
 
-        // 初始化播放器並設定「無死角」相依性攔截器
+        // 初始化播放器，並封裝「絕對防禦型」網址攔截轉向器
         function initNewPlayer() {
             container.innerHTML = "";
             const ruffle = window.RufflePlayer.newest();
             const player = ruffle.createPlayer();
             container.appendChild(player);
 
-            // 🌟 onInterceptURLLoad 核心解法
+            // 🌟 onInterceptURLLoad 終極防漏接轉換邏輯 🌟
             player.onInterceptURLLoad = (url) => {
+                console.log(`[Ruffle 原始請求網址]: ${url}`);
                 try {
-                    // 安全解析網址，剝離 Flash 結尾常見的隨機參數 (如 top.swf?v=123)
-                    const parsedUrl = new URL(url, window.location.href);
-                    const fileName = parsedUrl.pathname.split('/').pop().toLowerCase();
+                    // 1. 強制以當前網域為基底解析，徹底剝離 Flash 結尾常見的防快取參數 (如 top.swf?v=123)
+                    const parsedUrl = new URL(url, window.location.origin);
                     
+                    // 2. 拿到純淨的路徑部分後，切出最後的純小寫檔名 (例如: "top.swf")
+                    let fileName = parsedUrl.pathname.split('/').pop().toLowerCase();
+
+                    // 3. 額外容錯防禦：若 ActionScript 內部拼接出帶有雙重 blob: 的異常請求，強行進行二次修正
+                    if (url.startsWith('blob:')) {
+                        const cleanUrl = url.replace(/^blob:/, '');
+                        try {
+                            const secUrl = new URL(cleanUrl);
+                            fileName = secUrl.pathname.split('/').pop().toLowerCase();
+                        } catch(err) {}
+                    }
+
+                    // 4. 精準比對快取對照表
                     if (virtualFS[fileName]) {
-                        console.log(`[VFS Linked] Intercepted dependency: ${fileName}`);
-                        return virtualFS[fileName].rawUrl; // 丟回真實認得的底層二進位 Blob URL
+                        // 🎯 核心轉向：直接攔截並強行引導至你指定的虛擬 BLOB 路徑
+                        const finalVirtualBlob = virtualFS[fileName].displayUrl;
+                        console.log(`[VFS 攔截成功] ${url} >>> 轉向至 >>> ${finalVirtualBlob}`);
+                        return finalVirtualBlob; 
                     }
                 } catch(e) {
-                    // 備用降級切法
+                    // 備用暴力降級切法，防止特殊字符造成 URL 物件解析崩潰
                     const fileName = url.split('?')[0].split('/').pop().toLowerCase();
-                    if (virtualFS[fileName]) return virtualFS[fileName].rawUrl;
+                    if (virtualFS[fileName]) return virtualFS[fileName].displayUrl;
                 }
+                
+                console.warn(`[VFS 漏空放行] 檔案未預載，走實體網路請求: ${url}`);
                 return url;
             };
 
             return player;
         }
 
-        // 啟動主程式
+        // 點擊 Launch 按鈕執行主要 SWF 
         launchBtn.addEventListener("click", () => {
-            const selectedRawBlobUrl = mainSelect.value; // 直接拿到底層真實的二進位網址 (VALUE)
+            const selectedVirtualUrl = mainSelect.value; // 此時拿到的就是 "blob:https://flash.nins.cc/main.swf"
             
-            if (!selectedRawBlobUrl) return alert("Please select a target BLOB.");
+            if (!selectedVirtualUrl) return alert("Please select a target BLOB.");
 
-            const player = initNewPlayer();
+            // 透過下拉選單的值（虛擬路徑），反向追蹤出記憶體中真正的數據流結構
+            const foundAsset = Object.values(virtualFS).find(item => item.displayUrl === selectedVirtualUrl);
             
-            // 從對照表中撈出顯示名稱印 Log 給你看
-            const found = Object.values(virtualFS).find(item => item.rawUrl === selectedRawBlobUrl);
-            console.log(`Ruffle Loading Main SWF: ${found ? found.displayUrl : selectedRawBlobUrl}`);
-            
-            // 傳遞底層真實認得的二進位 Blob 網址給 Ruffle 執行，徹底免除 404 與檔案找不到錯誤
-            player.load({ url: selectedRawBlobUrl }); 
+            if (foundAsset) {
+                const player = initNewPlayer();
+                console.log(`Ruffle Loading Main SWF Alias: ${selectedVirtualUrl}`);
+                
+                // 💡 為了防範開頭讀取引發 ERR_FILE_NOT_FOUND，投餵給 player.load 的仍必須是真實二進位隨機 UUID Blob 網址
+                player.load({ url: foundAsset.rawUrl }); 
+            }
         });
     </script>
 </body>
