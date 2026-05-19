@@ -5,485 +5,90 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ruffle VFS Player - Perfect Map Test</title>
 
-<script src="./static/js/ruffle.js"></script>
-
 <style>
-:root{
-    --bg:#fff;
-    --text:#000;
-    --border:#000;
-    --dim:#777;
-    --h:38px;
-}
-
-body{
-    margin:0;
-    padding:40px 20px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-    display:flex;
-    justify-content:center;
-    background:#fff;
-}
-
-.player-card{
-    width:100%;
-    max-width:900px;
-    border:1px solid black;
-    padding:30px;
-    box-sizing:border-box;
-}
-
-.control-panel{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:20px;
-    margin-bottom:20px;
-}
-
-@media(max-width:768px){
-    .control-panel{
-        grid-template-columns:1fr;
-    }
-}
-
-.control-section{
-    display:flex;
-    flex-direction:column;
-}
-
-label{
-    font-size:11px;
-    font-weight:bold;
-    margin-bottom:5px;
-}
-
-.input-group{
-    display:flex;
-    height:var(--h);
-    box-sizing:border-box;
-}
-
-input[type=text],
-select{
-    flex:1;
-    border:1px solid black;
-    border-right:none;
-    padding:0 10px;
-    outline:none;
-    height:100%;
-    box-sizing:border-box;
-}
-
-.btn{
-    border:1px solid black;
-    background:white;
-    cursor:pointer;
-    padding:0 16px;
-    font-size:11px;
-    font-weight:bold;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    height:100%;
-    box-sizing:border-box;
-}
-
-.btn:hover{
-    background:black;
-    color:white;
-}
-
-.file-btn{
-    border-left:none;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    height:100%;
-    box-sizing:border-box;
-}
-
-input[type=file]{
-    display:none;
-}
-
-.cache-status{
-    margin-top:8px;
-    font-size:11px;
-    color:var(--dim);
-}
-
-#blob-inspector{
-    display:none;
-    margin-top:15px;
-    padding:10px;
-    font-family:monospace;
-    font-size:11px;
-    border:1px dashed black;
-    background:#fafafa;
-    word-break:break-all;
-}
-
-#player-container{
-    margin-top:20px;
-    width:100%;
-    aspect-ratio:4/3;
-    border:1px solid black;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    overflow:hidden;
-}
-
-#player-container ruffle-player{
-    width:100%;
-    height:100%;
-    display:block;
-}
+:root { --bg:#fff; --text:#000; --border:#000; --dim:#777; --h:38px; }
+body { margin:0; padding:40px 20px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; display:flex; justify-content:center; background:#fff; }
+.player-card { width:100%; max-width:900px; border:1px solid black; padding:30px; box-sizing:border-box; }
+.control-panel { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+.control-section { display:flex; flex-direction:column; }
+label { font-size:11px; font-weight:bold; margin-bottom:5px; }
+.input-group { display:flex; height:var(--h); box-sizing:border-box; }
+.btn { border:1px solid black; background:white; cursor:pointer; padding:0 16px; font-size:11px; font-weight:bold; display:inline-flex; align-items:center; justify-content:center; height:100%; }
+.btn:hover { background:black; color:white; }
+#player-container { margin-top:20px; width:100%; aspect-ratio:4/3; border:1px solid black; display:flex; justify-content:center; align-items:center; overflow:hidden; }
+#player-container ruffle-player { width:100%; height:100%; display:block; }
 </style>
-
+<script src="./static/js/ruffle.js"></script>
 </head>
 <body>
 
 <div class="player-card">
-
     <h2>Flash BLOB Smart Mapping Test</h2>
-
     <div class="control-panel">
-
         <div class="control-section">
-
             <label>Step 1: Mount Files</label>
-
             <div class="input-group">
-
-                <input
-                    id="url-input"
-                    type="text"
-                    placeholder="https://example.com/game.swf"
-                >
-
-                <button
-                    class="btn"
-                    id="fetch-btn"
-                >
-                    Fetch
-                </button>
-
-                <label class="btn file-btn">
-
-                    <input
-                        id="files-input"
-                        type="file"
-                        multiple
-                        accept=".swf,.mp3,.xml"
-                    >
-
-                    Files
-
+                <label class="btn">
+                    <input id="files-input" type="file" multiple accept=".swf" style="display:none;">
+                    Upload SWF Files
                 </label>
-
             </div>
-
-            <div
-                class="cache-status"
-                id="cache-info"
-            >
-                [VFS Empty]
-            </div>
-
         </div>
-
-
         <div class="control-section">
-
-            <label>Step 2: Launch BLOB Direct</label>
-
+            <label>Step 2: Launch</label>
             <div class="input-group">
-
-                <select
-                    id="main-select"
-                    disabled
-                >
-                    <option value="">
-                        [Select SWF Target]
-                    </option>
-                </select>
-
-                <button
-                    class="btn"
-                    id="launch-btn"
-                    disabled
-                >
-                    Launch
-                </button>
-
+                <select id="main-select" disabled><option value="">[Select Target]</option></select>
+                <button class="btn" id="launch-btn" disabled>Launch</button>
             </div>
-
         </div>
-
     </div>
-
-
-    <div id="blob-inspector"></div>
-
-    <div id="player-container">
-
-        <div>
-            [VFS Waiting for Files]
-        </div>
-
-    </div>
-
+    <div id="player-container"></div>
 </div>
 
-
 <script>
+const vfs = new Map();
+const BASE_URL = "https://flash.nins.cc/";
 
-const baseOrigin = "https://flash.nins.cc";
-const virtualFS = {};
-
-window.RufflePlayer = window.RufflePlayer || {};
-
-window.RufflePlayer.config = {
-    publicPath:"./static/js/",
-    letterbox:"on",
-    scale:"showAll",
-    forceScale:true,
-    quality:"high"
-};
-
-
-const container = document.getElementById("player-container");
-const urlInput = document.getElementById("url-input");
-const fetchBtn = document.getElementById("fetch-btn");
-const filesInput = document.getElementById("files-input");
-const mainSelect = document.getElementById("main-select");
-const launchBtn = document.getElementById("launch-btn");
-const cacheInfo = document.getElementById("cache-info");
-const inspector = document.getElementById("blob-inspector");
-
-
-function updateUI(){
-
-    const count = Object.keys(virtualFS).length;
-
-    cacheInfo.innerText = `[Mounted ${count} Files]`;
-
-    mainSelect.disabled = count===0;
-    launchBtn.disabled = count===0;
-
-}
-
-
-function addAssetToVFS(name, blob){
-
-    const key = name.toLowerCase();
-    const virtualURL = `${baseOrigin}/${key}`;
-
-    if(virtualFS[key]){
-        URL.revokeObjectURL(virtualFS[key].rawUrl);
-    }
-
-    virtualFS[key] = {
-        blob:blob,
-        displayUrl:virtualURL,
-        rawUrl:URL.createObjectURL(blob) 
-    };
-
-
-    if(key.endsWith(".swf")){
-
-        let option = [...mainSelect.options].find(o=>o.value===key);
-
-        if(!option){
-            option = document.createElement("option");
-            option.value = key; 
-            mainSelect.appendChild(option);
-        }
-
-        option.textContent = virtualURL;
-    }
-
-}
-
-
-mainSelect.addEventListener(
-"change",
-()=>{
-
-    const key = mainSelect.value;
-
-    if(!key || !virtualFS[key]){
-        inspector.style.display = "none";
-        return;
-    }
-
-    const asset = virtualFS[key];
-
-    inspector.style.display = "block";
-    inspector.innerHTML=
-`
-<b>Virtual URL (Alias)</b>
-<br><br>
-${asset.displayUrl}
-<br><br>
-<b>Real Native Blob URL</b>
-<br><br>
-${asset.rawUrl}
-`;
-
-});
-
-
-fetchBtn.addEventListener(
-"click",
-async()=>{
-
-    const url = urlInput.value.trim();
-
-    if(!url) return;
-
-    try{
-
-        cacheInfo.innerText = "[Fetching...]";
-
-        const res = await fetch(url);
-
-        if(!res.ok){
-            throw new Error(
-                `HTTP ${res.status}`
-            );
-        }
-
-        const blob = await res.blob();
-
-        const fileName =
-            url
-            .split("?")[0]
-            .split("/")
-            .pop();
-
-        addAssetToVFS(
-            fileName,
-            blob
-        );
-
-        updateUI();
-        urlInput.value = ""; 
-
-    }
-    catch(err){
-
-        alert(`Fetch 失敗:\n${err.message}`);
-        updateUI(); 
-
-    }
-
-});
-
-
-filesInput.addEventListener(
-"change",
-e=>{
-
-    [...e.target.files]
-    .forEach(file=>{
-
-        addAssetToVFS(
-            file.name,
-            file
-        );
-
+// 1. 檔案掛載
+document.getElementById("files-input").addEventListener("change", (e) => {
+    [...e.target.files].forEach(file => {
+        const key = file.name.toLowerCase();
+        vfs.set(key, URL.createObjectURL(file));
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = key;
+        document.getElementById("main-select").appendChild(opt);
     });
-
-    updateUI();
-    e.target.value = ""; 
-
+    document.getElementById("main-select").disabled = false;
+    document.getElementById("launch-btn").disabled = false;
 });
 
+// 2. 啟動播放器
+document.getElementById("launch-btn").addEventListener("click", () => {
+    const key = document.getElementById("main-select").value;
+    const container = document.getElementById("player-container");
+    container.innerHTML = "";
+    
+    const player = window.RufflePlayer.newest().createPlayer();
+    container.appendChild(player);
 
-function initPlayer(){
-
-    container.innerHTML="";
-
-    const ruffle =
-        window
-        .RufflePlayer
-        .newest();
-
-    const player =
-        ruffle.createPlayer();
-
-    container.appendChild(
-        player
-    );
-
-    // 🎯 【智慧映射攔截器核心升級】
-    player.onInterceptURLLoad =
-    (url)=>{
-
-        console.log("[Ruffle 請求行為]", url);
-        
-        // 1. 標準清洗：試圖解析出檔名
-        let fileName = "";
-        try {
-            const parsed = new URL(url, baseOrigin);
-            fileName = parsed.pathname.split("/").pop().toLowerCase();
-        } catch(e) {
-            fileName = url.split('?')[0].split('/').pop().toLowerCase();
+    // 核心攔截器：同時處理主檔與次檔映射
+    player.onInterceptURLLoad = (url) => {
+        const name = url.split('/').pop().split('?')[0].toLowerCase();
+        if (vfs.has(name)) {
+            console.log(`%c[VFS Hit]: ${name}`, "color: green; font-weight: bold;");
+            return vfs.get(name);
         }
-
-        // 2. 第一路徑：如果能直接對齊檔名 Key (如 top.swf)，直接精準命中！
-        if(virtualFS[fileName]){
-            console.log(`%c[VFS 檔名命中] ${fileName} >>> ${virtualFS[fileName].rawUrl}`, "color: #00bb00; font-weight: bold;");
-            return virtualFS[fileName].rawUrl;
-        }
-
-        // 3. 第二路徑：如果 Ruffle 噴出來的是帶 UUID 的虛擬路徑 (如你載入序列中顯示的狀態)
-        // 這裡啟動「模糊後備映射機制」，只要判定是來自 flash.nins.cc 的 blob 請求，
-        // 就去尋找 VFS 中是否有相應類型的備用資源。
-        if (url.includes("flash.nins.cc") && url.startsWith("blob:")) {
-            console.log(`%c[VFS 攔截到虛擬 BLOB 請求] 正在進行動態重定向...`, "color: #ff9900; font-style: italic;");
-            
-            // 嘗試尋找 VFS 裡尚未被載入的對應資源檔案（例如序列中的 top.swf）
-            // 為了極致的安全與準確度，直接將其對應到你上傳的子 SWF 上
-            const subSWFKey = Object.keys(virtualFS).find(k => k !== mainSelect.value && k.endsWith('.swf'));
-            if(subSWFKey) {
-                console.log(`%c[VFS 虛擬映射成功] 成功將虛擬別名導向記憶體中的: ${subSWFKey}`, "color: #0088cc; font-weight: bold;");
-                return virtualFS[subSWFKey].rawUrl;
-            }
-        }
-
         return url;
     };
 
-    return player;
-
-}
-
-
-launchBtn.addEventListener(
-"click",
-()=>{
-
-    const key = mainSelect.value;
-
-    if(!virtualFS[key])
-        return;
-
-    const asset = virtualFS[key];
-    const player = initPlayer();
-
-    console.log(`%c[啟動測試] 投餵原始 Blob Stream 至 Ruffle 內核`, "color: #ff9900; font-weight: bold;");
-
+    // 強制設定 baseUrl，觸發攔截機制
     player.load({
-        url: asset.rawUrl, 
+        url: key, 
+        baseUrl: BASE_URL,
         allowScriptAccess: true
     });
-
 });
-
 </script>
-
 </body>
 </html>
