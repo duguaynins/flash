@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruffle VFS Player</title>
+    <title>Ruffle VFS Player - Standard</title>
     
     <script src="./static/js/ruffle.js"></script>
 
@@ -47,7 +47,7 @@
             text-transform: uppercase;
         }
 
-        /* 雙欄控制面板 */
+        /* 雙欄一體化控制面板 */
         .control-panel {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -79,10 +79,11 @@
             box-sizing: border-box;
         }
 
-        input[type="text"] {
+        /* 極簡下拉選單樣式 */
+        select {
             background-color: var(--bg-color);
             border: 1px solid var(--border-color);
-            border-right: none;
+            border-right: none; /* 拔掉右邊線，與執行按鈕完美結合 */
             color: var(--text-color);
             font-family: inherit;
             padding: 0 12px;
@@ -91,6 +92,10 @@
             outline: none;
             height: 100%;
             box-sizing: border-box;
+            cursor: pointer;
+            border-radius: 0;
+            -webkit-appearance: none; /* 移除原生的下拉箭頭以符合極簡風 */
+            appearance: none;
         }
 
         input[type="file"] { display: none; }
@@ -121,7 +126,6 @@
 
         .file-label { width: 100%; height: 100%; margin: 0 !important; }
 
-        /* 快取狀態提示文字 */
         .cache-status {
             font-size: 11px;
             color: var(--accent-dim);
@@ -129,7 +133,7 @@
             font-style: italic;
         }
 
-        /* 播放器區域 */
+        /* 播放器區域（鎖定 4:3 比例） */
         #player-container {
             width: 100%;
             aspect-ratio: 4 / 3;
@@ -159,37 +163,35 @@
         <div class="control-panel">
             
             <div class="control-section">
-                <label>Step 1: Cache Dependency Files (Optional)</label>
+                <label>Step 1: Mount All Game Files</label>
                 <div class="input-group">
                     <label class="btn file-label">
-                        <input type="file" id="cache-input" accept=".swf,.mp3,.xml" multiple>
-                        Inject Assets into Cache
+                        <input type="file" id="assets-input" accept=".swf,.mp3,.xml" multiple>
+                        Select & Load All Files
                     </label>
                 </div>
-                <div class="cache-status" id="cache-info">[ Memory Cache Empty ]</div>
+                <div class="cache-status" id="cache-info">[ VFS Drive Unmounted ]</div>
             </div>
             
             <div class="control-section">
-                <label for="url-input">Step 2: Execute Main SWF</label>
+                <label for="main-select">Step 2: Launch Main SWF</label>
                 <div class="input-group">
-                    <input type="text" id="url-input" placeholder="Enter URL or Select File -->">
-                    <label class="btn" style="border-left: none; border-right: none;">
-                        <input type="file" id="main-file-input" accept=".swf">
-                        File
-                    </label>
-                    <button class="btn" id="load-url-btn">URL</button>
+                    <select id="main-select" disabled>
+                        <option value="">[ Select Target SWF ]</option>
+                    </select>
+                    <button class="btn" id="launch-btn" disabled>Launch</button>
                 </div>
             </div>
 
         </div>
 
         <div id="player-container">
-            <div class="placeholder-text">[ AWAITING SWF INPUT ]</div>
+            <div class="placeholder-text">[ AWAITING VFS DRIVE MOUNT ]</div>
         </div>
     </div>
 
     <script>
-        // 全域虛擬檔案快取地圖
+        // 核心對照表：記錄「原始檔名 (小寫)」與「Blob 虛擬路徑」的映射關係
         const virtualFS = {};
 
         window.RufflePlayer = window.RufflePlayer || {};
@@ -202,88 +204,90 @@
         };
 
         const container = document.getElementById("player-container");
+        const assetsInput = document.getElementById("assets-input");
+        const mainSelect = document.getElementById("main-select");
+        const launchBtn = document.getElementById("launch-btn");
+        const cacheInfo = document.getElementById("cache-info");
 
-        // 處理步驟一：將多選的相依素材塞進瀏覽器記憶體快取
-        /*
-        document.getElementById("cache-input").addEventListener("change", (e) => {
+        // 監聽 Step 1：將使用者選取的所有檔案全部塞入 Blob 記憶體，並記住名稱對照
+        assetsInput.addEventListener("change", (e) => {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
 
+            // 清空舊的虛擬檔案系統與選單
+            for (let key in virtualFS) {
+                URL.revokeObjectURL(virtualFS[key]); // 釋放舊記憶體指標
+                delete virtualFS[key];
+            }
+            mainSelect.innerHTML = '<option value="">[ Select Target SWF ]</option>';
+
+            // 開始將所有檔案建立 Blob URL 映射
             files.forEach(file => {
                 const blobURL = URL.createObjectURL(file);
-                // 用小寫檔名做 Key，例如：virtualFS["level1.swf"] = "blob:http..."
-                virtualFS[file.name.toLowerCase()] = blobURL;
+                const lowerName = file.name.toLowerCase();
+                
+                // 記得原始名稱與 BLOB 的對應
+                virtualFS[lowerName] = blobURL;
+
+                // 如果是 .swf 檔案，將原始名稱塞入 Step 2 的下拉選單供使用者選擇
+                if (lowerName.endsWith('.swf')) {
+                    const option = document.createElement("option");
+                    option.value = lowerName; // Value 綁定原始檔名 key
+                    option.textContent = file.name; // 顯示原始檔名
+                    mainSelect.appendChild(option);
+                }
             });
 
-            document.getElementById("cache-info").innerText = `[ Caching ${Object.keys(virtualFS).length} Asset(s) in Memory ]`;
-            document.getElementById("cache-info").style.color = "var(--success-color)";
-        });*/
-        // 修改後的快取注入邏輯
-        document.getElementById("cache-input").addEventListener("change", (e) => {
-            const files = Array.from(e.target.files);
-            if (files.length === 0) return;
-        
-            files.forEach(file => {
-                // 技巧：將原始 file 的 slice 取出，並建立一個帶有特殊標籤的新 Blob
-                const namedBlob = file.slice(0, file.size, "application/x-shockwave-flash");
-                
-                // 部分現代瀏覽器支援在物件上直接掛載 name 屬性影響 URL 生成
-                const blobURL = URL.createObjectURL(namedBlob);
-                
-                // 為了達到你想要的效果，我們直接在虛擬地圖中改用「自訂名稱」對應
-                virtualFS[file.name.toLowerCase()] = blobURL;
-            });
-        
-            document.getElementById("cache-info").innerText = `[ Caching ${Object.keys(virtualFS).length} Asset(s) ]`;
+            const totalCached = Object.keys(virtualFS).length;
+            if (totalCached > 0) {
+                cacheInfo.innerText = `[ Successfully Mounted ${totalCached} Files ]`;
+                cacheInfo.style.color = "var(--success-color)";
+                // 解除鎖定第二步的選單與按鈕
+                mainSelect.disabled = false;
+                launchBtn.disabled = false;
+            }
         });
 
-        // 核心：初始化播放器並設置攔截器
+        // 核心：建立帶有 VFS 網址攔截器的 Ruffle 實例
         function initNewPlayer() {
             container.innerHTML = "";
             const ruffle = window.RufflePlayer.newest();
             const player = ruffle.createPlayer();
             container.appendChild(player);
 
-            // 🌟 核心魔法：攔截 Ruffle 內部的所有網路請求！
-            // 當 Flash 試圖載入相對路徑的素材時，強制讓它去撈我們快取的 BlobURL
+            // 網址攔截魔法：當主要 SWF 執行過程中需要呼叫其他依賴檔案時觸發
             player.onInterceptURLLoad = (url) => {
-                // 取得檔案名稱（例如從 "http://localhost/level1.swf" 切出 "level1.swf"）
+                // 擷取請求網址最後的原始檔名
                 const fileName = url.split('/').pop().toLowerCase();
                 
+                // 透過「原始名稱」比對，如果存在於對照表中，就把對應的 Blob 虛擬路徑丟回給 Ruffle
                 if (virtualFS[fileName]) {
-                    console.log(`[VFS Hit] Redirecting request for ${fileName}`);
-                    return virtualFS[fileName]; // 命中快取，重導向至記憶體檔案
+                    console.log(`[VFS Linked] ${fileName} -> ${virtualFS[fileName]}`);
+                    return virtualFS[fileName]; 
                 }
-                return url; // 沒命中，走原本的網路請求
+                return url; 
             };
 
             return player;
         }
 
-        // 處理步驟二：遠端網址載入
-        document.getElementById("load-url-btn").addEventListener("click", () => {
-            const url = document.getElementById("url-input").value.trim();
-            if (url) {
-                const player = initNewPlayer();
-                player.load({ url: url });
-            } else {
-                alert("Please enter a URL.");
+        // 監聽 Step 2：點擊 Launch 按鈕執行選定的主要檔案
+        launchBtn.addEventListener("click", () => {
+            const selectedFileName = mainSelect.value;
+            
+            if (!selectedFileName) {
+                alert("Please select a main SWF file to launch.");
+                return;
             }
-        });
 
-        // 處理步驟二：本地主檔案載入
-        document.getElementById("main-file-input").addEventListener("change", (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const player = initNewPlayer();
-                    player.load({
-                        data: e.target.result,
-                        allowScriptAccess: true
-                    });
-                };
-                reader.readAsArrayBuffer(file);
+            // 透過玩家在選單中挑選的「原始檔名」，去對照表找出對應的 Blob 虛擬網址
+            const mainBlobUrl = virtualFS[selectedFileName];
+            
+            if (mainBlobUrl) {
+                const player = initNewPlayer();
+                // 讓 Ruffle 直接加載這個主要檔案的 Blob 虛擬路徑
+                player.load({ url: mainBlobUrl });
+                console.log(`Launching Main SWF via VFS Map: ${selectedFileName}`);
             }
         });
     </script>
