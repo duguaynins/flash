@@ -21,11 +21,20 @@ body {
     width: 100%;
     aspect-ratio: 4/3;
     border: 1px solid #000;
+    /* ⭐ 關鍵 */
+    overflow: hidden;
+    position: relative;
 }
 .btn {
     padding: 8px 12px;
     border: 1px solid #000;
     cursor: pointer;
+}
+#player-container ruffle-player,
+#player-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
 }
 </style>
 
@@ -125,6 +134,9 @@ document.getElementById("launch-btn").addEventListener("click", () => {
     container.innerHTML = "";
 
     player = window.RufflePlayer.newest().createPlayer();
+    player.style.width = "100%";
+    player.style.height = "100%";
+    player.style.display = "block";
     container.appendChild(player);
 
     console.log("Player created");
