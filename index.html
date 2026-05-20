@@ -75,12 +75,28 @@ document.getElementById("files-input").addEventListener("change", (e) => {
 const originalFetch = window.fetch;
 
 window.fetch = async (input, init) => {
-    const url = typeof input === "string" ? input : input.url;
 
-    const name = url.split('/').pop().split('?')[0].toLowerCase();
+    let url = "";
 
-    // DEBUG
+    // ✅ 安全處理各種 input 型態
+    if (typeof input === "string") {
+        url = input;
+    } 
+    else if (input && typeof input.url === "string") {
+        url = input.url;
+    } 
+    else {
+        console.log("[FETCH skipped - unknown input]", input);
+        return originalFetch(input, init);
+    }
+
     console.log("[FETCH]", url);
+
+    const name = url.split('/').pop()?.split('?')[0]?.toLowerCase();
+
+    if (!name) {
+        return originalFetch(input, init);
+    }
 
     if (vfs.has(name)) {
         console.log("%c[VFS HIT]: " + name, "color: green; font-weight: bold;");
