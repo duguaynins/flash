@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -64,12 +65,13 @@ document.getElementById("files-input").addEventListener("change", (e) => {
 });
 
 // 2. 啟動播放器
+let player = null;
 document.getElementById("launch-btn").addEventListener("click", () => {
     const key = document.getElementById("main-select").value;
     const container = document.getElementById("player-container");
     container.innerHTML = "";
     
-    const player = window.RufflePlayer.newest().createPlayer();
+    player = window.RufflePlayer.newest().createPlayer();
     container.appendChild(player);
 
     // 核心攔截器：同時處理主檔與次檔映射
