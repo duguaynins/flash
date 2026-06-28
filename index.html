@@ -359,7 +359,23 @@ document.getElementById("launch-btn").addEventListener("click", () => {
         allowScriptAccess: true,
         scale: "exactFit" // 改為讓它完美填滿計算出來的高度 >>>  exactFit <<< showAll
     });
+
+    autoFullscreen(container);
 });
+
+function autoFullscreen(element) {  ///20260628
+    if (!element) return;
+    
+    if (element.requestFullscreen) {
+        element.requestFullscreen();
+    } else if (element.mozRequestFullScreen) { /* Firefox */
+        element.mozRequestFullScreen();
+    } else if (element.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
+        element.webkitRequestFullscreen();
+    } else if (element.msRequestFullscreen) { /* IE/Edge */
+        element.msRequestFullscreen();
+    }
+}
 </script>
 
 </body>
