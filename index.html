@@ -356,7 +356,8 @@ document.getElementById("launch-btn").addEventListener("click", () => {
     player.load({
         url: key,
         baseUrl: BASE_URL,
-        allowScriptAccess: true
+        allowScriptAccess: true,
+        scale: "exactFit" // 改為讓它完美填滿計算出來的高度 >>>  exactFit <<< showAll
     });
 });
 </script>
