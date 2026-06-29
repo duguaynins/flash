@@ -281,6 +281,14 @@ select{
 
 
 <script>
+window.RufflePlayer = window.RufflePlayer || {};
+window.RufflePlayer.config = {
+    // 關鍵設定：完全關閉 Ruffle 的右鍵快顯選單
+    "contextMenu": "off" 
+};
+
+</script>
+<script>
 const vfs = new Map();
 const BASE_URL = "https://flash.nins.cc/";
 
